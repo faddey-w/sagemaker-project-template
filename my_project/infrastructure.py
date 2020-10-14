@@ -21,11 +21,13 @@ def build_source_distribution(output_dir=None, suppress_stdout=False):
         [
             sys.executable,
             os.path.join(paths.REPO_ROOT, "setup.py"),
+            "egg_info",
+            "--egg-base",
+            SOURCE_BUILD_DIR,
             "sdist",
             "--dist-dir",
             output_dir,
         ],
-        cwd=SOURCE_BUILD_DIR,
         stdout=subprocess.DEVNULL if suppress_stdout else None,
         stderr=subprocess.STDOUT,
     )
