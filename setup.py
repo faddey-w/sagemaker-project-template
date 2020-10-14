@@ -3,10 +3,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='sagemaker-poc',
-    version='0.1.0',
+    name="sagemaker-poc",
+    version="0.1.0",
     packages=find_packages(include=["my_project"]),
     install_requires=[
-        'boto3==1.14.48',
+        "boto3==1.14.48",
+        "torch==1.4.0",
+        "pandas==1.0.5",
+        "numpy==1.19.2",
     ],
 )

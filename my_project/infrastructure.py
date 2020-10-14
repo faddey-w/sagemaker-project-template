@@ -5,7 +5,6 @@ import boto3
 from . import paths
 
 
-SOURCE_BUILD_DIR = os.path.join(paths.TMP, "build")
 SOURCE_DIST_DIR = os.path.join(paths.TMP, "dist")
 
 
@@ -16,14 +15,10 @@ def build_source_distribution(output_dir=None, suppress_stdout=False):
     """
     if output_dir is None:
         output_dir = SOURCE_DIST_DIR
-    os.makedirs(SOURCE_BUILD_DIR, exist_ok=True)
     subprocess.check_call(
         [
             sys.executable,
             os.path.join(paths.REPO_ROOT, "setup.py"),
-            "egg_info",
-            "--egg-base",
-            SOURCE_BUILD_DIR,
             "sdist",
             "--dist-dir",
             output_dir,

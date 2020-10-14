@@ -27,11 +27,14 @@ resource "aws_ecr_repository" "model_environments" {
 }
 
 
-//module "ecr_image" {
-//  source             = "github.com/byu-oit/terraform-aws-ecr-image?ref=v1.0.1"
-//  dockerfile_dir     = "docker"
-//  ecr_repository_url = aws_ecr_repository.model_environments.repository_url
-//}
+module "ecr_image" {
+  source             = "github.com/byu-oit/terraform-aws-ecr-image?ref=v1.0.1"
+  dockerfile_dir     = "docker"
+  ecr_repository_url = aws_ecr_repository.model_environments.repository_url
+}
+output "worker_image_url" {
+  value = module.ecr_image.ecr_image_url
+}
 
 
 ######## Notebook instances - for interactive work
@@ -130,7 +133,7 @@ resource "aws_sagemaker_notebook_instance_lifecycle_configuration" "notebook_con
       if [ -d "/home/ec2-user/SageMaker/kernels" ]; then
         for env in /home/ec2-user/SageMaker/kernels/*; do
           ln -s $env /home/ec2-user/anaconda3/envs/$(basename "$env")
-          python -m ipykernel install --user --name $(basename "$env") --display-name "$(basename "$env")"
+          sudo -u ec2-user python -m ipykernel install --user --name $(basename "$env") --display-name "$(basename "$env")"
         done
       fi
     EOT
@@ -141,6 +144,12 @@ resource "aws_sagemaker_notebook_instance_lifecycle_configuration" "notebook_con
 resource "aws_sagemaker_notebook_instance" "small" {
   name = "small"
   instance_type = "ml.t2.medium"
+  role_arn = aws_iam_role.for_sagemaker_instances.arn
+  lifecycle_config_name = "notebook-config"
+}
+resource "aws_sagemaker_notebook_instance" "gpu" {
+  name = "gpu"
+  instance_type = "ml.p2.xlarge"
   role_arn = aws_iam_role.for_sagemaker_instances.arn
   lifecycle_config_name = "notebook-config"
 }
