@@ -28,9 +28,10 @@ resource "aws_ecr_repository" "model_environments" {
 
 
 module "ecr_image" {
-  source             = "github.com/byu-oit/terraform-aws-ecr-image?ref=v1.0.1"
+  source             = "github.com/faddey-w/terraform-aws-ecr-image?ref=v1.0.2"
   dockerfile_dir     = "docker"
   ecr_repository_url = aws_ecr_repository.model_environments.repository_url
+  aws_profile = "sagemaker_project_template"
 }
 output "worker_image_url" {
   value = module.ecr_image.ecr_image_url
