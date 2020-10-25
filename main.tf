@@ -38,6 +38,69 @@ output "worker_image_url" {
 }
 
 
+######## Network/security settings
+# TODO currently we just use some default allow-wildcard security settings
+# this has to be adapted to specific project needs!
+
+data "aws_vpc" "default" {
+  default = true
+}
+data "aws_security_group" "default" {
+  name = "default"
+}
+output "security_group_id" {
+  value = data.aws_security_group.default.id
+}
+data "aws_subnet" "default" {
+  # for some reason only in this AZ I can create training jobs
+  availability_zone = "us-west-2b"
+  default_for_az = true
+  vpc_id = data.aws_vpc.default.id
+}
+output "subnet_id_default" {
+  value = data.aws_subnet.default.id
+}
+
+
+# in order to connect both S3 and EFS to training jobs,
+# the jobs must reside in a subnet that is connected to an internet-enabled subnet via NAT
+
+resource "aws_subnet" "jobs" {
+  vpc_id = data.aws_vpc.default.id
+  availability_zone = "us-west-2b"
+  cidr_block = "172.31.65.0/24"  # TODO this depends on VPC's CIDR block
+  # and must not conflict with existing (default) subnets
+}
+output "subnet_id_jobs" {
+  value = aws_subnet.jobs.id
+}
+resource "aws_eip" "nat" {}
+
+resource "aws_nat_gateway" "jobs" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = data.aws_subnet.default.id
+}
+data "aws_route_table" "default" {
+  vpc_id = data.aws_security_group.default.vpc_id
+  filter {
+    name = "association.main"
+    values = ["true"]
+  }
+}
+resource "aws_route_table" "jobs" {
+  vpc_id = data.aws_vpc.default.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.jobs.id
+  }
+}
+resource "aws_route_table_association" "jobs" {
+  subnet_id      = aws_subnet.jobs.id
+  route_table_id = aws_route_table.jobs.id
+}
+
+
 ######## Notebook instances - for interactive work
 
 # create permissions available from within Notebooks:
@@ -81,6 +144,9 @@ resource "aws_iam_role" "for_sagemaker_instances" {
   }
   EOT
 }
+output "sagemaker_role_arn" {
+  value = aws_iam_role.for_sagemaker_instances.arn
+}
 resource "aws_iam_role_policy_attachment" "attach_sagemaker_full_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
   role = aws_iam_role.for_sagemaker_instances.name
@@ -94,15 +160,15 @@ resource "aws_iam_role_policy_attachment" "attach_s3_access" {
   role = aws_iam_role.for_sagemaker_instances.name
 }
 
-# EFS is created manually - too important infrastructure to let automated tools work with it
+# EFS and S3 are created manually - too important infrastructure to let automated tools work with it
 # imagine you issue "terraform destroy" and it'll delete your data...
 
 # mount EFS to Notebooks:
-data "aws_efs_mount_target" "model_and_data" {
-  mount_target_id = "fsmt-a6fc57a3"
-}
 data "aws_efs_file_system" "model_and_data" {
   file_system_id = "fs-0dadd008"
+}
+output "efs_id" {
+  value = data.aws_efs_file_system.model_and_data.file_system_id
 }
 resource "aws_sagemaker_notebook_instance_lifecycle_configuration" "notebook_config" {
   name = "notebook-config"
@@ -144,13 +210,17 @@ resource "aws_sagemaker_notebook_instance_lifecycle_configuration" "notebook_con
 # notebooks themselves:
 resource "aws_sagemaker_notebook_instance" "small" {
   name = "small"
-  instance_type = "ml.t2.medium"
+  instance_type = "ml.t3.medium"
   role_arn = aws_iam_role.for_sagemaker_instances.arn
   lifecycle_config_name = "notebook-config"
+  subnet_id = data.aws_subnet.default.id
+  security_groups = [data.aws_security_group.default.id]
 }
 resource "aws_sagemaker_notebook_instance" "gpu" {
   name = "gpu"
   instance_type = "ml.p2.xlarge"
   role_arn = aws_iam_role.for_sagemaker_instances.arn
   lifecycle_config_name = "notebook-config"
+  subnet_id = data.aws_subnet.default.id
+  security_groups = [data.aws_security_group.default.id]
 }

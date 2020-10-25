@@ -20,5 +20,5 @@ RUN python -m pip install sagemaker-training
 
 ENV PATH="/opt/ml/code:${PATH}"
 
-COPY /entrypoint/main.py /opt/ml/code/main.py
-ENV SAGEMAKER_PROGRAM main.py
+COPY /entrypoint.py /opt/ml/code/entrypoint.py
+ENV SAGEMAKER_PROGRAM entrypoint.py
