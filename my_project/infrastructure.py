@@ -60,6 +60,7 @@ def run_job(
     instance_type,
     instance_count,
     max_run_time,
+    allow_efs_write=False,
     wait=False,
 ):
 
@@ -98,7 +99,7 @@ def run_job(
                 file_system_id=efs_id,
                 file_system_type="EFS",
                 directory_path="/",
-                file_system_access_mode="ro",
+                file_system_access_mode="rw" if allow_efs_write else "ro",
             ),
             "code": paths.S3_BUCKET_URL + src_s3_path,
         },
